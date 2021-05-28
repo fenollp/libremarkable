@@ -1,7 +1,7 @@
 # For musl, use: armv7-unknown-linux-musleabihf
 TARGET ?= armv7-unknown-linux-gnueabihf
 
-DEVICE_IP ?= '10.11.99.1'
+DEVICE_IP ?= 10.11.99.1
 DEVICE_HOST ?= root@$(DEVICE_IP)
 
 all: library examples

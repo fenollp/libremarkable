@@ -6,7 +6,7 @@ use crate::input::rotate::CoordinatePart;
 use crate::input::scan::SCANNED;
 use crate::input::{InputDeviceState, InputEvent};
 
-use evdev::raw::input_event;
+use evdev::EventType;
 use fxhash::FxHashMap;
 use log::{debug, warn};
 use std::sync::{
@@ -77,16 +77,16 @@ impl MultitouchEvent {
     }
 }
 
-pub fn decode(ev: &input_event, outer_state: &InputDeviceState) -> Vec<InputEvent> {
+pub fn decode(ev: &evdev::InputEvent, outer_state: &InputDeviceState) -> Vec<InputEvent> {
     let state = match outer_state {
         InputDeviceState::MultitouchState(ref state_arc) => state_arc,
         _ => unreachable!(),
     };
     let mut fingers = state.fingers.lock().unwrap();
     let current_slot = state.current_slot.load(Ordering::Relaxed);
-    match ev._type {
-        ecodes::EV_SYN => {
-            match ev.code {
+    match ev.event_type() {
+        EventType::SYNCHRONIZATION => {
+            match ev.code() {
                 ecodes::SYN_REPORT => {
                     let mut events: Vec<InputEvent> = vec![];
                     for (_slot, mut finger) in fingers.iter_mut() {
@@ -115,20 +115,21 @@ pub fn decode(ev: &input_event, outer_state: &InputDeviceState) -> Vec<InputEven
                     }
                     events
                 }
-                _ => {
+                _code => {
                     debug!(
-                        "Unsupported event code for syn [type: {0} code: {1} value: {2}]",
-                        ev._type, ev.code, ev.value
+                        "Unsupported event code for syn [code: {0} value: {1}]",
+                        _code,
+                        ev.value()
                     );
                     vec![]
                 }
             }
         }
-        ecodes::EV_ABS => {
+        EventType::ABSOLUTE => {
             // Absolute
-            match ev.code {
+            match ev.code() {
                 ecodes::ABS_MT_SLOT => {
-                    state.current_slot.store(ev.value, Ordering::Relaxed);
+                    state.current_slot.store(ev.value(), Ordering::Relaxed);
                     // Since only one event is processed, it isn't
                     // necessary to change the local current_slot variable.
                     vec![]
@@ -136,7 +137,7 @@ pub fn decode(ev: &input_event, outer_state: &InputDeviceState) -> Vec<InputEven
                 ecodes::ABS_MT_POSITION_X => {
                     let placement = CURRENT_DEVICE.get_multitouch_placement();
                     let mut rotated_part = placement.rotation.rotate_part(
-                        CoordinatePart::X(ev.value as u16),
+                        CoordinatePart::X(ev.value() as u16),
                         &SCANNED.multitouch_orig_size,
                     );
                     if placement.invert_x {
@@ -164,7 +165,7 @@ pub fn decode(ev: &input_event, outer_state: &InputDeviceState) -> Vec<InputEven
                 ecodes::ABS_MT_POSITION_Y => {
                     let placement = CURRENT_DEVICE.get_multitouch_placement();
                     let mut rotated_part = placement.rotation.rotate_part(
-                        CoordinatePart::Y(ev.value as u16),
+                        CoordinatePart::Y(ev.value() as u16),
                         &SCANNED.multitouch_orig_size,
                     );
                     if placement.invert_x {
@@ -190,19 +191,19 @@ pub fn decode(ev: &input_event, outer_state: &InputDeviceState) -> Vec<InputEven
                     vec![]
                 }
                 ecodes::ABS_MT_PRESSURE => {
-                    if ev.value > 0 {
+                    if ev.value() > 0 {
                         // Pretty much always true, but who knows
                         fingers.entry(current_slot).or_default().pressed = true;
                     }
                     vec![]
                 }
-                ecodes::ABS_MT_TRACKING_ID => match ev.value {
+                ecodes::ABS_MT_TRACKING_ID => match ev.value() {
                     -1 => {
                         fingers.entry(current_slot).or_default().pressed = false;
                         vec![]
                     }
                     _ => {
-                        fingers.entry(current_slot).or_default().tracking_id = ev.value;
+                        fingers.entry(current_slot).or_default().tracking_id = ev.value();
                         vec![]
                     }
                 },
@@ -213,19 +214,22 @@ pub fn decode(ev: &input_event, outer_state: &InputDeviceState) -> Vec<InputEven
                 // Technically possible (but maybe not for the reMarkable):
                 // ABS_MT_DISTANCE, ABS_MT_TOOL_X, ABS_MT_TOOL_Y, ABS_MT_WIDTH_MAJOR,
                 // ABS_MT_WIDTH_MINOR, ABS_MT_TOOL_TYPE or ABS_MT_BLOB_ID
-                _ => {
+                _code => {
                     warn!(
-                        "Unknown event code for multitouch [type: {0} code: {1} value: {2}]",
-                        ev._type, ev.code, ev.value
+                        "Unknown event code for multitouch [code: {0} value: {1}]",
+                        _code,
+                        ev.value()
                     );
                     vec![]
                 }
             }
         }
-        _ => {
+        _ty => {
             warn!(
-                "Unknown event type for [type: {0} code: {1} value: {2}]",
-                ev._type, ev.code, ev.value
+                "Unknown event type for [type: {:?} code: {1} value: {2}]",
+                _ty,
+                ev.code(),
+                ev.value()
             );
             vec![]
         }
