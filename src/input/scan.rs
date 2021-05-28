@@ -130,10 +130,17 @@ impl EvDevs {
 
         // SIZES
         let wacom_state = wacom_dev.cached_state().abs_vals().unwrap();
-        let wacom_orig_size = Vector2 {
+        let mut wacom_orig_size = Vector2 {
             x: wacom_state[ecodes::ABS_X as usize].maximum as u16,
             y: wacom_state[ecodes::ABS_Y as usize].maximum as u16,
         };
+        if wacom_orig_size.x == wacom_orig_size.y && wacom_orig_size.x == 0 {
+            let wacom_state = wacom_dev.get_abs_state().unwrap();
+            wacom_orig_size = Vector2 {
+                x: wacom_state[ecodes::ABS_X as usize].maximum as u16,
+                y: wacom_state[ecodes::ABS_Y as usize].maximum as u16,
+            };
+        }
         // X and Y are swapped for the wacom since rM1 and probably also rM2 have it rotated
         let (wacom_width, wacom_height) = crate::device::CURRENT_DEVICE
             .get_wacom_placement()
@@ -142,10 +149,17 @@ impl EvDevs {
             .into();
 
         let mt_state = multitouch_dev.cached_state().abs_vals().unwrap();
-        let multitouch_orig_size = Vector2 {
+        let mut multitouch_orig_size = Vector2 {
             x: mt_state[ecodes::ABS_MT_POSITION_X as usize].maximum as u16,
             y: mt_state[ecodes::ABS_MT_POSITION_Y as usize].maximum as u16,
         };
+        if multitouch_orig_size.x == multitouch_orig_size.y && multitouch_orig_size.x == 0 {
+            let mt_state = multitouch_dev.get_abs_state().unwrap();
+            multitouch_orig_size = Vector2 {
+                x: mt_state[ecodes::ABS_MT_POSITION_X as usize].maximum as u16,
+                y: mt_state[ecodes::ABS_MT_POSITION_Y as usize].maximum as u16,
+            };
+        }
         // Axes are swapped on the rM2 (see InputDeviceRotation for more)
         let (mt_width, mt_height) = crate::device::CURRENT_DEVICE
             .get_multitouch_placement()
