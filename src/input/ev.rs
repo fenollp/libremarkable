@@ -2,6 +2,7 @@ use crate::input;
 
 use input::scan::SCANNED;
 use log::{error, info, warn};
+use nix::fcntl::{FcntlArg, OFlag};
 use std::os::unix::io::AsRawFd;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -66,14 +67,14 @@ impl EvDevContext {
                         .bits(),
                     data: 0,
                 }];
+
+                let fd = dev.as_raw_fd();
+                // Set nonblocking
+                nix::fcntl::fcntl(fd, FcntlArg::F_SETFL(OFlag::O_NONBLOCK)).unwrap();
+                // Errno::result(unsafe {libc::fcntl(fd, libc::F_SETFL, flag.bits()) });
+
                 let epfd = epoll::create(false).unwrap();
-                epoll::ctl(
-                    epfd,
-                    epoll::ControlOptions::EPOLL_CTL_ADD,
-                    dev.as_raw_fd(),
-                    v[0],
-                )
-                .unwrap();
+                epoll::ctl(epfd, epoll::ControlOptions::EPOLL_CTL_ADD, fd, v[0]).unwrap();
 
                 // init callback
                 info!("Init complete for {:?}", path);

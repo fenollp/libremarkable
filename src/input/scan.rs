@@ -1,7 +1,7 @@
 use super::ecodes;
 use super::InputDevice;
 use cgmath::Vector2;
-use log::debug;
+use log::{debug, info};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -227,7 +227,9 @@ impl EvDevs {
         let mut resuable_device = dev_arc.lock().unwrap();
         if resuable_device.is_some() {
             let mut resuable_device = resuable_device.take().unwrap();
+            info!(">>> fetch_events calling");
             resuable_device.fetch_events()?; // Clear events until now
+            info!(">>> fetch_events called");
             Ok(resuable_device)
         } else {
             evdev::Device::open(self.get_path(device))
