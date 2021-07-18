@@ -31,6 +31,21 @@ impl CompressedCanvasState {
         }
     }
 
+    /// Returns the compressed data of a CompressedCanvasState
+    pub fn get_data(&self) -> &[u8] {
+        &*self.data
+    }
+
+    /// Returns the image width of a CompressedCanvasState
+    pub fn get_width(&self) -> u32 {
+        self.width
+    }
+
+    /// Returns the image height of a CompressedCanvasState
+    pub fn get_height(&self) -> u32 {
+        self.height
+    }
+
     /// Returns an ImageBuffer which can be used to restore the contents of a screen
     /// region using the FramebufferIO::restore_region(..)
     pub fn decompress(&self) -> Vec<u8> {
